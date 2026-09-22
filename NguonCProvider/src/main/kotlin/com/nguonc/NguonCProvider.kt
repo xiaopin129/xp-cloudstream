@@ -38,9 +38,11 @@ class NguonCProvider : MainAPI() {
         val totalPages = response?.paginate?.totalPages ?: 1
 
         return newHomePageResponse(
-            list = HomePageList(
-                name = request.name,
-                list = homeItems
+            list = listOf(
+                HomePageList(
+                    name = request.name,
+                    list = homeItems
+                )
             ),
             hasNext = currentPage < totalPages
         )
@@ -62,7 +64,7 @@ class NguonCProvider : MainAPI() {
         val response = app.get(url).parsedSafe<NguonCDetailResponse>() ?: return null
         val movie = response.movie ?: return null
 
-        val title = movie.name ?: ""
+        val title = movie.name ?: return null
         val poster = movie.posterUrl ?: movie.thumbUrl
         val description = movie.description
         val year = movie.year
@@ -83,9 +85,9 @@ class NguonCProvider : MainAPI() {
             }
         }
 
-        val tvType = if (episodesList.size > 1) TvType.TvSeries else TvType.Movie
+        val isTvSeries = episodesList.size > 1
 
-        return if (tvType == TvType.TvSeries) {
+        return if (isTvSeries) {
             newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodesList) {
                 this.posterUrl = poster
                 this.plot = description
@@ -125,7 +127,12 @@ class NguonCProvider : MainAPI() {
         }
 
         if (data.startsWith("http")) {
-            loadExtractor(data, subtitleCallback, callback)
+            loadExtractor(
+                url = data,
+                referer = mainUrl,
+                subtitleCallback = subtitleCallback,
+                callback = callback
+            )
             return true
         }
 

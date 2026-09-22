@@ -17,7 +17,6 @@ class NguonCProvider : MainAPI() {
         TvType.Anime
     )
 
-    // 1. TRANG CHỦ
     override val mainPage = mainPageOf(
         "$mainUrl/api/films/phim-moi-cap-nhat" to "Phim Mới Cập Nhật",
         "$mainUrl/api/films/danh-sach/phim-bo" to "Phim Bộ",
@@ -38,17 +37,14 @@ class NguonCProvider : MainAPI() {
         val totalPages = response?.paginate?.totalPages ?: 1
 
         return newHomePageResponse(
-            list = listOf(
-                HomePageList(
-                    name = request.name,
-                    list = homeItems
-                )
+            list = HomePageList(
+                name = request.name,
+                list = homeItems
             ),
             hasNext = currentPage < totalPages
         )
     }
 
-    // 2. TÌM KIẾM
     override suspend fun search(query: String): List<SearchResponse> {
         val encodedQuery = URLEncoder.encode(query, "UTF-8")
         val url = "$mainUrl/api/films/search?keyword=$encodedQuery"
@@ -59,7 +55,6 @@ class NguonCProvider : MainAPI() {
         } ?: emptyList()
     }
 
-    // 3. TẢI THÔNG TIN PHIM
     override suspend fun load(url: String): LoadResponse? {
         val response = app.get(url).parsedSafe<NguonCDetailResponse>() ?: return null
         val movie = response.movie ?: return null
@@ -77,8 +72,7 @@ class NguonCProvider : MainAPI() {
                     episodesList.add(
                         Episode(
                             data = epData,
-                            name = ep.name ?: "Tập ${ep.slug ?: ""}",
-                            episode = ep.slug?.toIntOrNull()
+                            name = ep.name ?: "Tập ${ep.slug ?: ""}"
                         )
                     )
                 }
@@ -103,7 +97,6 @@ class NguonCProvider : MainAPI() {
         }
     }
 
-    // 4. LẤY LINK VIDEO
     override suspend fun loadLinks(
         data: String,
         isCdn: Boolean,
@@ -127,19 +120,13 @@ class NguonCProvider : MainAPI() {
         }
 
         if (data.startsWith("http")) {
-            loadExtractor(
-                url = data,
-                referer = mainUrl,
-                subtitleCallback = subtitleCallback,
-                callback = callback
-            )
+            loadExtractor(data, mainUrl, subtitleCallback, callback)
             return true
         }
 
         return false
     }
 
-    // MAPPER & DATA CLASSES
     private fun NguonCItem.toSearchResponse(): SearchResponse? {
         val itemName = name ?: return null
         val itemSlug = slug ?: return null

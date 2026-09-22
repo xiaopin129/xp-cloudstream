@@ -9,4 +9,4 @@ pluginManagement {
 
 rootProject.name = "CloudstreamPlugins"
 
-include("NguoncProvider")
+include("NguonCProvider")

@@ -24,8 +24,7 @@ android {
 }
 
 dependencies {
-    val cloudstream by configurations
-    cloudstream("com.lagradost:cloudstream3:pre-release")
+    add("cloudstream", "com.lagradost:cloudstream3:pre-release")
 }
 
 tasks.register<BuildTask>("make") {

@@ -1,6 +1,6 @@
 plugins {
     id("com.android.library")
-    id("org.jetbrains.kotlin.android") version "2.0.0"
+    id("kotlin-android")
     id("com.lagradost.cloudstream3.gradle")
 }
 
@@ -26,8 +26,8 @@ dependencies {
     val cloudstream by configurations
     cloudstream("com.lagradost:cloudstream3:pre-release")
 
-    // Nạp thư viện Jackson Annotations hỗ trợ @JsonProperty
-    implementation("com.fasterxml.jackson.core:jackson-annotations:2.15.2")
+    // Nạp jackson-annotations để fix lỗi Unresolved reference: JsonProperty
+    compileOnly("com.fasterxml.jackson.core:jackson-annotations:2.15.2")
 }
 
 cloudstream {

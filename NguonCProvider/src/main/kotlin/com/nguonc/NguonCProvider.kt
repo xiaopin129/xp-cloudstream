@@ -1,0 +1,188 @@
+package com.nguonc
+
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.lagradost.cloudstream3.*
+import com.lagradost.cloudstream3.utils.*
+import java.net.URLEncoder
+
+class NguonCProvider : MainAPI() {
+    override var mainUrl = "https://phim.nguonc.com"
+    override var name = "Nguồn C"
+    override var lang = "vi"
+    override val hasMainPage = true
+    override val supportedTypes = setOf(
+        TvType.Movie,
+        TvType.TvSeries,
+        TvType.AsianDrama,
+        TvType.Anime
+    )
+
+    // 1. TRANG CHỦ
+    override val mainPage = mainPageOf(
+        "$mainUrl/api/films/phim-moi-cap-nhat" to "Phim Mới Cập Nhật",
+        "$mainUrl/api/films/danh-sach/phim-bo" to "Phim Bộ",
+        "$mainUrl/api/films/danh-sach/phim-le" to "Phim Lẻ",
+        "$mainUrl/api/films/danh-sach/hoat-hinh" to "Hoạt Hình",
+        "$mainUrl/api/films/danh-sach/tv-shows" to "TV Shows"
+    )
+
+    override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
+        val url = "${request.data}?page=$page"
+        val response = app.get(url).parsedSafe<NguonCResponse>()
+        
+        val homeItems = response?.items?.mapNotNull { item ->
+            item.toSearchResponse()
+        } ?: emptyList()
+
+        val currentPage = response?.paginate?.currentPage ?: 1
+        val totalPages = response?.paginate?.totalPages ?: 1
+
+        return newHomePageResponse(
+            list = HomePageList(
+                name = request.name,
+                list = homeItems
+            ),
+            hasNext = currentPage < totalPages
+        )
+    }
+
+    // 2. TÌM KIẾM
+    override suspend fun search(query: String): List<SearchResponse> {
+        val encodedQuery = URLEncoder.encode(query, "UTF-8")
+        val url = "$mainUrl/api/films/search?keyword=$encodedQuery"
+        val response = app.get(url).parsedSafe<NguonCResponse>()
+
+        return response?.items?.mapNotNull { item ->
+            item.toSearchResponse()
+        } ?: emptyList()
+    }
+
+    // 3. TẢI THÔNG TIN PHIM
+    override suspend fun load(url: String): LoadResponse? {
+        val response = app.get(url).parsedSafe<NguonCDetailResponse>() ?: return null
+        val movie = response.movie ?: return null
+
+        val title = movie.name ?: ""
+        val poster = movie.posterUrl ?: movie.thumbUrl
+        val description = movie.description
+        val year = movie.year
+
+        val episodesList = mutableListOf<Episode>()
+        movie.episodes?.forEach { server ->
+            server.items?.forEach { ep ->
+                val epData = ep.embed ?: ep.m3u8 ?: ""
+                if (epData.isNotEmpty()) {
+                    episodesList.add(
+                        Episode(
+                            data = epData,
+                            name = ep.name ?: "Tập ${ep.slug ?: ""}",
+                            episode = ep.slug?.toIntOrNull()
+                        )
+                    )
+                }
+            }
+        }
+
+        val tvType = if (episodesList.size > 1) TvType.TvSeries else TvType.Movie
+
+        return if (tvType == TvType.TvSeries) {
+            newTvSeriesLoadResponse(title, url, TvType.TvSeries, episodesList) {
+                this.posterUrl = poster
+                this.plot = description
+                this.year = year
+            }
+        } else {
+            val singleLink = episodesList.firstOrNull()?.data ?: ""
+            newMovieLoadResponse(title, url, TvType.Movie, singleLink) {
+                this.posterUrl = poster
+                this.plot = description
+                this.year = year
+            }
+        }
+    }
+
+    // 4. LẤY LINK VIDEO
+    override suspend fun loadLinks(
+        data: String,
+        isCdn: Boolean,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
+        if (data.isEmpty()) return false
+
+        if (data.contains(".m3u8")) {
+            callback(
+                ExtractorLink(
+                    source = name,
+                    name = "$name - HLS",
+                    url = data,
+                    referer = mainUrl,
+                    quality = Qualities.Unknown.value,
+                    isM3u8 = true
+                )
+            )
+            return true
+        }
+
+        if (data.startsWith("http")) {
+            loadExtractor(data, subtitleCallback, callback)
+            return true
+        }
+
+        return false
+    }
+
+    // MAPPER & DATA CLASSES
+    private fun NguonCItem.toSearchResponse(): SearchResponse? {
+        val itemName = name ?: return null
+        val itemSlug = slug ?: return null
+        val detailApiUrl = "$mainUrl/api/film/$itemSlug"
+        val itemPoster = thumbUrl ?: posterUrl
+
+        return newMovieSearchResponse(itemName, detailApiUrl, TvType.Movie) {
+            this.posterUrl = itemPoster
+        }
+    }
+
+    data class NguonCResponse(
+        @JsonProperty("items") val items: List<NguonCItem>?,
+        @JsonProperty("paginate") val paginate: Paginate?
+    )
+
+    data class Paginate(
+        @JsonProperty("current_page") val currentPage: Int?,
+        @JsonProperty("total_pages") val totalPages: Int?
+    )
+
+    data class NguonCItem(
+        @JsonProperty("name") val name: String?,
+        @JsonProperty("slug") val slug: String?,
+        @JsonProperty("thumb_url") val thumbUrl: String?,
+        @JsonProperty("poster_url") val posterUrl: String?
+    )
+
+    data class NguonCDetailResponse(
+        @JsonProperty("movie") val movie: MovieDetail?
+    )
+
+    data class MovieDetail(
+        @JsonProperty("name") val name: String?,
+        @JsonProperty("description") val description: String?,
+        @JsonProperty("poster_url") val posterUrl: String?,
+        @JsonProperty("thumb_url") val thumbUrl: String?,
+        @JsonProperty("year") val year: Int?,
+        @JsonProperty("episodes") val episodes: List<ServerItem>?
+    )
+
+    data class ServerItem(
+        @JsonProperty("server_name") val serverName: String?,
+        @JsonProperty("items") val items: List<EpisodeItem>?
+    )
+
+    data class EpisodeItem(
+        @JsonProperty("name") val name: String?,
+        @JsonProperty("slug") val slug: String?,
+        @JsonProperty("embed") val embed: String?,
+        @JsonProperty("m3u8") val m3u8: String?
+    )
+}

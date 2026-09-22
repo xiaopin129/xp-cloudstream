@@ -1,5 +1,3 @@
-import com.lagradost.cloudstream3.gradle.BuildTask
-
 plugins {
     id("com.android.library")
     id("kotlin-android")
@@ -28,7 +26,7 @@ dependencies {
     cloudstream("com.lagradost:cloudstream3:pre-release")
 }
 
-tasks.register<BuildTask>("make") {
+cloudstream {
     authors = listOf("xiaopin129")
     description = "Nguồn C Provider"
 }

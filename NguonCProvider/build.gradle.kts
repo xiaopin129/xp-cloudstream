@@ -1,6 +1,6 @@
 plugins {
     id("com.android.library")
-    id("kotlin-android")
+    id("org.jetbrains.kotlin.android") version "2.0.0"
     id("com.lagradost.cloudstream3.gradle")
 }
 
@@ -25,6 +25,9 @@ android {
 dependencies {
     val cloudstream by configurations
     cloudstream("com.lagradost:cloudstream3:pre-release")
+
+    // Nạp thư viện Jackson Annotations hỗ trợ @JsonProperty
+    implementation("com.fasterxml.jackson.core:jackson-annotations:2.15.2")
 }
 
 cloudstream {

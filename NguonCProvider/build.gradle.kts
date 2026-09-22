@@ -5,6 +5,7 @@ plugins {
 }
 
 android {
+    namespace = "com.nguonc"
     compileSdk = 34
 
     defaultConfig {

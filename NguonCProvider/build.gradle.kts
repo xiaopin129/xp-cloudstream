@@ -25,6 +25,6 @@ dependencies {
 }
 
 task<com.lagradost.cloudstream3.gradle.BuildTask>("make") {
-    authors = listOf("YourName")
+    authors = listOf("xiaopin129")
     description = "Nguồn C Provider"
 }
